@@ -1,7 +1,7 @@
 #!/bin/sh
 #Calculate (and print to the screen) the number of sequences in your reference genome
 echo "number of sequences: " 
-grep -c "^>" ~/HW1/refs/Mus_musculus.GRCm39.dna.toplevel.fa.gz4
+grep -c "^>" ~/HW1/refs/Mus_musculus.GRCm39.dna.toplevel.fa.gz
 
 #Calculate (and print to the screen) the number of reads in each sample.
 echo "number of reads in each sample: "
