@@ -2,7 +2,7 @@
 
 ##Reference genome preparation
 gunzip ~/HW1/refs/mm10dna.fa.gz
-hisat2-build mm10dna.fa mm10dna.fa
+hisat2-build ~/HW1/refsmm10dna.fa ~/HW1/refsmm10dna.fa
 
 ##Data QC
 #FASTQC analysis on each FASTQC file
