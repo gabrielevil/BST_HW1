@@ -1,63 +1,79 @@
 #!/bin/sh
 
 ##Reference genome preparation
-gunzip ~/HW1/refs/mm10dna.fa.gz
+gungz ~/HW1/refs/mm10dna.fa.gz
 hisat2-build ~/HW1/refs/mm10dna.fa ~/HW1/refs/mm10dna.fa
 
 ##Data QC
 #FASTQC analysis on each FASTQC file
-fastqc ~/HW1/inputs/*.fastq.gz -o ~/HW1/outputs
 
-#Generate MultiQC report
-multiqc ~/HW1/outputs
+fastqc -t 6 ~/HW1/inputs/SRR8985047_1.fastq.gz ~/HW1/inputs/SRR8985047_2.fastq.gz -o ~/HW1/outputs
+fastqc -t 6 ~/HW1/inputs/SRR8985048_1.fastq.gz ~/HW1/inputs/SRR8985048_2.fastq.gz -o ~/HW1/outputs
+fastqc -t 6 ~/HW1/inputs/SRR8985049_1.fastq.gz ~/HW1/inputs/SRR8985049_2.fastq.gz -o ~/HW1/outputs
+fastqc -t 6 ~/HW1/inputs/SRR8985050_1.fastq.gz ~/HW1/inputs/SRR8985050_2.fastq.gz -o ~/HW1/outputs
 
-#Standard FASQC trimming
-for i in ~/HW1/inputs/*_1.fastq.gz;
-do
-  R1=${i};
-  R2="~/HW1/inputs/"$(basename ${i} _1.fastq.gz)"_2.fastq.gz";
-  trim_galore -j 6 --paired ~/HW1/inputs/${R1} ~/HW1/inputs/${R2} --length 20 --output_dir ~/HW1/trimmed_files/
-done
+
+# #Generate MultiQC report
+multiqc ~/HW1/outputs -o ~/HW1/outputs  
+
+# #Standard FASTQC trimming
+
+trim_galore -j 6 --paired --length 20 -o ~/HW1/trimmed_files/ ~/HW1/inputs/SRR8985047_1.fastq.gz ~/HW1/inputs/SRR8985047_2.fastq.gz
+trim_galore -j 6 --paired --length 20 -o ~/HW1/trimmed_files/ ~/HW1/inputs/SRR8985048_1.fastq.gz ~/HW1/inputs/SRR8985048_2.fastq.gz
+trim_galore -j 6 --paired --length 20 -o ~/HW1/trimmed_files/ ~/HW1/inputs/SRR8985049_1.fastq.gz ~/HW1/inputs/SRR8985049_2.fastq.gz
+trim_galore -j 6 --paired --length 20 -o ~/HW1/trimmed_files/ ~/HW1/inputs/SRR8985050_1.fastq.gz ~/HW1/inputs/SRR8985050_2.fastq.gz
+
 
 #Rerun FASTQC on cleaned fastq files
-fastqc ~/HW1/trimmed_files/*.fastq.gz -o ~/HW1/outputs
+
+fastqc -t 6 -o ~/HW1/outputs/trimmed ~/HW1/trimmed_files/SRR8985047_1_val_1.fq.gz ~/HW1/trimmed_files/SRR8985047_2_val_2.fq.gz
+fastqc -t 6 -o ~/HW1/outputs/trimmed ~/HW1/trimmed_files/SRR8985048_1_val_1.fq.gz ~/HW1/trimmed_files/SRR8985048_2_val_2.fq.gz
+fastqc -t 6 -o ~/HW1/outputs/trimmed ~/HW1/trimmed_files/SRR8985049_1_val_1.fq.gz ~/HW1/trimmed_files/SRR8985049_2_val_2.fq.gz
+fastqc -t 6 -o ~/HW1/outputs/trimmed ~/HW1/trimmed_files/SRR8985050_1_val_1.fq.gz ~/HW1/trimmed_files/SRR8985050_2_val_2.fq.gz
 
 #Create multiQC plots for raw and processed data
-multiqc ~/HW1/outputs
-
+multiqc ~/HW1/outputs -o ~/HW1/outputs
 
 ##Mapping, QC and quantification
 
 ref="~/HW1/refs/mm10dna.fa"
-gtf="~/HW1/refs/mm10.gtf"
-threads=6
-
-for i in ~/HW1/inputs/*_1.fastq.gz;
+for i in ~/HW1/trimmed_files/*_1_val_1.fq.gz
 do
-  R1=${i};
-  R2="~/HW1/inputs/"$(basename ${i} _1.fastq.gz)"_2.fastq.gz";
-  BAM="~/HW1/outputs/"$(basename ${i} _1.fastq.gz)".bam";
-  OUT1="~/HW1/outputs/"$(basename ${i} _1.fastq.gz)"_1_val_1.fq.gz"
-  OUT2="~/HW1/outputs/"$(basename ${i} _1.fastq.gz)"_2_val_2.fq.gz"
-  SAMPLE=$(basename ${i} _1.fastq.gz)
+    R1=${i}
+    R2="~/HW1/trimmed_files/"$(basename ${i} _1_val_1.fq.gz)"_2_val_2.fq.gz"
+    SAM="~/HW1/outputs/trimmed/"$(basename ${i} _1_val_1.fq.gz)".sam"
+    BAM="~/HW1/outputs/trimmed/"$(basename ${i} _1_val_1.fq.gz)".bam"
+    BAM_S="~/HW1/outputs/trimmed/"$(basename ${i} _1_val_1.fq.gz)"_sorted.bam"
+    BAM_Fil="~/HW1/outputs/trimmed/"$(basename ${i} _1_val_1.fq.gz)"_filtered.bam"
+    BAM_F="~/HW1/outputs/trimmed/"$(basename ${i} _1_val_1.fq.gz)"_fixmate.bam"
+    BAM_P="~/HW1/outputs/trimmed/"$(basename ${i} _1_val_1.fq.gz)"_positionsort.bam"
+    BAM_M="~/HW1/outputs/trimmed/"$(basename ${i} _1_val_1.fq.gz)"_markdup.bam"
+    hisat2 -p 6 --dta -x ${ref} -1 ${R1} -2 ${R2} -S ${SAM}
+    samtools view -@ 6 -bS ${SAM} -o ${BAM}
+    samtools view -@ 6 -F 260 -bS ${BAM} > ${BAM_Fil}
+    samtools sort -n -o ${BAM_S} ${BAM_Fil}
+    samtools fixmate -m ${BAM_S} ${BAM_F}
+    samtools sort -o ${BAM_P} ${BAM_F}
+    samtools markdup -r ${BAM_P} ${BAM_M}
+    samtools index ${BAM_M}
+    rm ${BAM} ${SAM} ${BAM_Fil} ${BAM_S} ${BAM_F} ${BAM_P}
+done 
 
-  hisat2 -p ${threads} --dta -x ${ref} -1 ${OUT1} -2 ${OUT2} -S ~/HW1/tmp/${SAMPLE}.sam 2>~/HW1/alignloc/${SAMPLE}.alnstats
-  samtools view -bS -@ 6 ~/HW1/tmp/${SAMPLE}.sam | samtools sort -@ 6 -o ${BAM}
-  samtools index ${BAM}
-  samtools flagstat ${BAM}
-  rm ~/HW1/tmp/${SAMPLE}.sam
-
-  stringtie -p 6 -G ${gtf} -o ~/HW1/outputs/${SAMPLE}.gtf -l ${SAMPLE} ${BAM}
+for i in ~/HW1/outputs/trimmed/*_markdup.bam
+do
+    GTF="~/HW1/outputs/stringtie/"$(basename ${i} _markdup.bam)".gtf"
+    BAM_M=${i}
+    stringtie -p 6 -G ~/HW1/refs/mm10.gtf -o ${GTF} ${BAM_M}
 done
 
-ls -l ~/HW1/outputs/*.gtf > ~/HW1/outputs/mergelist.txt 
-stringtie --merge -p 6 -G ${gtf} -o ~/HW1/results/stringtie_merged.gtf ~/HW1/outputs/mergelist.txt 
-
-for i in ~/HW1/inputs/*_1.fastq.gz;
-do
-  ID=$(basename $i _1.fastq.gz)
-
-  stringtie -e -B -p ${threads} -G ~/HW1/results/stringtie_merged.gtf -o outputs/${ID}/${ID}.gtf ~/HW1/outputs/${ID}.bam
-done
 #Create correlation diagram and PCA plot for the data (in results folder)
 
+multiBamSummary bins --outFileName ~/HW1/results/mapped.npz --binSize 1000 -p 6 --outRawCounts ~/HW1/results/raw_counts.tsv -b ~/HW1/outputs/trimmed/*_markdup.bam
+
+plotCorrelation -in ~/HW1/results/mapped.npz -c pearson -p heatmap -o ~/HW1/results/mapped_data_heatmap.pdf
+
+plotCorrelation -in ~/HW1/results/mapped.npz -c pearson -p scatterplot -o ~/HW1/results/mapped_data_scatter.pdf
+
+# --removeOutliers
+
+plotPCA -in ~/HW1/results/mapped.npz -o ~/HW1/results/mapped_data_pca.pdf
